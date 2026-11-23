@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   db, hasBeautyFields, KIND_LABEL, photoId, SLOT_LABEL, SLOTS, TIMING_LABEL, TIMINGS,
-  type DailyLog, type PhotoSlot, type Product, type ProductKind, type Score, type Timing,
+  type DailyLog, type MealItem, type PhotoSlot, type Product, type ProductKind, type Score, type Timing,
 } from '../db';
 import { addDays, formatLong, formatShort, todayTokyo } from '../lib/date';
 import { resizeToJpeg } from '../lib/image';
@@ -11,6 +11,8 @@ import ScoreButtons, { chip } from '../components/ScoreButtons';
 import PhotoViewer from '../components/PhotoViewer';
 import Card from '../components/Card';
 import Motivation from '../components/Motivation';
+import MealCard from '../components/MealCard';
+import { sumNutrients } from '../lib/nutrients';
 import ProductEditor from '../components/ProductEditor';
 import { BackupNotice, InstallNotice } from '../components/Notices';
 
@@ -56,6 +58,7 @@ type Form = {
   weight: string;
   sleep: string;
   calories: string;
+  meals: MealItem[];
   acne: string;
   redness?: Score;
   oiliness?: Score;
@@ -76,6 +79,7 @@ function toForm(l: DailyLog | undefined, prevWeight: number | undefined): Form {
     weight: l ? (l.weightKg?.toFixed(1) ?? '') : (prevWeight?.toFixed(1) ?? ''),
     sleep: l?.sleepHours?.toFixed(1) ?? '',
     calories: l?.calories?.toString() ?? '',
+    meals: l?.meals ?? [],
     acne: l?.newAcneCount?.toString() ?? '',
     redness: l?.redness,
     oiliness: l?.oiliness,
@@ -160,7 +164,9 @@ function DayForm({ date }: { date: string }) {
     const weightKg = parseDecimal(form.weight, 20, 300);
     const sleepHours = parseDecimal(form.sleep, 0, 24);
     const newAcneCount = parseInt0(form.acne);
-    const calories = parseInt0(form.calories.replace(/[,，]/g, ''), 20000);
+    const calories = form.meals.length
+      ? Math.round(sumNutrients(form.meals.map((m) => m.nutrients)).total.kcal ?? 0)
+      : parseInt0(form.calories.replace(/[,，]/g, ''), 20000);
     if (weightKg === 'error') return setError('体重は 20〜300 の数字で入力してください');
     if (sleepHours === 'error') return setError('睡眠時間は 0〜24 の数字で入力してください');
     if (calories === 'error') return setError('カロリーは 0〜20000 の整数で入力してください');
@@ -175,6 +181,7 @@ function DayForm({ date }: { date: string }) {
       weightKg,
       sleepHours,
       calories,
+      meals: form.meals.length ? form.meals : undefined,
       newAcneCount,
       redness: form.redness,
       oiliness: form.oiliness,
@@ -245,22 +252,9 @@ function DayForm({ date }: { date: string }) {
             </div>
           </div>
         </div>
-        <div className="mt-4">
-          <p className="mb-1 text-sm font-bold text-stone-600">摂取カロリー</p>
-          <div className="flex items-baseline gap-1">
-            <input
-              type="text"
-              inputMode="numeric"
-              value={form.calories}
-              onChange={(e) => set('calories', e.target.value)}
-              placeholder="2000"
-              className="h-12 w-40 min-w-0 rounded-xl border-2 border-stone-200 px-3 text-right text-xl focus:border-brand-300 focus:outline-none"
-            />
-            <span className="shrink-0 text-sm text-stone-500">kcal</span>
-            <span className="ml-2 text-[11px] text-stone-400">その日の合計</span>
-          </div>
-        </div>
       </Card>
+
+      <MealCard meals={form.meals} setMeals={(m) => set('meals', m)} calories={form.calories} setCalories={(c) => set('calories', c)} />
 
       {(['medicine', 'skincare'] as ProductKind[]).map((kind) => (
         <Card key={kind} title={`使用中の${KIND_LABEL[kind]}`} action={<EditButton onClick={() => setEditing(kind)} />}>

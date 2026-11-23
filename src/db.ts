@@ -1,4 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
+import type { Nutrients } from './lib/nutrients';
+import { FOOD_SEEDS } from './data/foods';
 
 export type Score = 1 | 2 | 3 | 4 | 5;
 export type PhotoSlot = 'front' | 'right' | 'left';
@@ -20,11 +22,27 @@ export type Product = {
 
 export type Usage = { productId: string; times: Timing[] };
 
+/** 食材（100g あたりの栄養） */
+export type Food = {
+  id: string;
+  name: string;
+  per100: Nutrients;
+  presets: { label: string; grams: number }[];
+  note?: string;
+  needsCheck?: boolean;
+  active: boolean;
+  createdAt: string;
+};
+
+/** その日に食べたもの。食材をあとで直しても過去の記録が変わらないよう、栄養はその時点の値で保存する */
+export type MealItem = { id: string; foodId: string; name: string; grams: number; nutrients: Nutrients };
+
 export type DailyLog = {
   date: string; // YYYY-MM-DD
   weightKg?: number;
   sleepHours?: number;
-  calories?: number;       // 摂取カロリー kcal（整数）
+  calories?: number;       // 摂取カロリー kcal（整数）。食べたものがある日は、その合計
+  meals?: MealItem[];
   newAcneCount?: number;
   redness?: Score;
   oiliness?: Score;
@@ -51,11 +69,23 @@ class AppDB extends Dexie {
   photos!: EntityTable<Photo, 'id'>;
   meta!: EntityTable<MetaRow, 'key'>;
   products!: EntityTable<Product, 'id'>;
+  foods!: EntityTable<Food, 'id'>;
   constructor() {
     super('body-log');
     this.version(1).stores({ logs: 'date', photos: 'id, date', meta: 'key' });
     this.version(2).stores({ logs: 'date', photos: 'id, date', meta: 'key', products: 'id' });
+    this.version(3)
+      .stores({ logs: 'date', photos: 'id, date', meta: 'key', products: 'id', foods: 'id' })
+      .upgrade((tx) => tx.table('foods').bulkPut(seedFoods()));
+    this.on('populate', (tx) => {
+      tx.table('foods').bulkAdd(seedFoods());
+    });
   }
+}
+
+export function seedFoods(): Food[] {
+  const now = Date.now();
+  return FOOD_SEEDS.map((f, i) => ({ ...f, active: true, createdAt: new Date(now + i).toISOString() }));
 }
 
 export const db = new AppDB();

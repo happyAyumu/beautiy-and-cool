@@ -4,6 +4,8 @@ import { db, getMeta, setMeta } from '../db';
 import { daysBetween, isoToTokyoDate, stampTokyo, todayTokyo, type Period } from '../lib/date';
 import { isIOS, isStandalone } from '../components/Notices';
 import PeriodSwitch from '../components/PeriodSwitch';
+import FoodEditor from '../components/FoodEditor';
+import type { Food } from '../db';
 import { applyBackup, createBackup, deleteAll, markBackedUp, parseBackup, shareOrDownload, type ParsedBackup } from './backup';
 import { buildAiMarkdown, copyText } from './aiExport';
 
@@ -22,6 +24,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
       <div className="space-y-4 px-4 pt-4">
         <IphoneNote />
         <ContestCard />
+        <FoodsCard />
         <BackupCard />
         <RestoreCard />
         <AiExportCard />
@@ -54,6 +57,56 @@ function IphoneNote() {
       </p>
       {isIOS() && <p className="mt-1">いまは {isStandalone() ? 'ホーム画面のアプリ' : 'Safari'} で開いています。</p>}
     </div>
+  );
+}
+
+function FoodsCard() {
+  const foods = useLiveQuery(() => db.foods.toCollection().sortBy('createdAt'));
+  const [editing, setEditing] = useState<Food | 'new'>();
+  const [showHidden, setShowHidden] = useState(false);
+  const active = foods?.filter((f) => f.active) ?? [];
+  const hidden = foods?.filter((f) => !f.active) ?? [];
+  const checks = active.filter((f) => f.needsCheck).length;
+  return (
+    <Card title="食材の一覧">
+      <p className="mb-2 text-xs text-stone-500">
+        「食べたもの」で選べる食材と、100g あたりの栄養です。押すと値を直せます。
+        {checks > 0 && <span className="text-amber-700">「要確認」の {checks} 件は目安の値なので、パッケージの表示に合わせて直してください。</span>}
+      </p>
+      <ul className="divide-y divide-stone-100">
+        {active.map((f) => (
+          <li key={f.id}>
+            <button onClick={() => setEditing(f)} className="flex min-h-11 w-full items-center justify-between py-2 text-left text-sm">
+              <span>
+                {f.name}
+                {f.needsCheck && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-800">要確認</span>}
+              </span>
+              <span className="shrink-0 text-xs text-stone-400">{Math.round(f.per100.kcal ?? 0)} kcal/100g ›</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <button onClick={() => setEditing('new')} className={`${secondary} mt-3`}>
+        ＋ 食材を登録する
+      </button>
+      {hidden.length > 0 && (
+        <div className="mt-3">
+          <button className="h-9 text-xs text-stone-400" onClick={() => setShowHidden(!showHidden)}>
+            一覧から外した食材（{hidden.length}）{showHidden ? '▲' : '▼'}
+          </button>
+          {showHidden &&
+            hidden.map((f) => (
+              <div key={f.id} className="flex h-11 items-center justify-between text-sm text-stone-500">
+                {f.name}
+                <button className="h-10 text-brand-600" onClick={() => db.foods.update(f.id, { active: true })}>
+                  戻す
+                </button>
+              </div>
+            ))}
+        </div>
+      )}
+      {editing && <FoodEditor food={editing === 'new' ? undefined : editing} onClose={() => setEditing(undefined)} />}
+    </Card>
   );
 }
 
@@ -287,7 +340,7 @@ function DeleteCard() {
   const [msg, setMsg] = useState<string>();
   return (
     <Card title="全データを削除">
-      <p className="mb-3 text-xs text-stone-500">この端末の記録・写真・薬と肌ケア用品の一覧をすべて消します。元に戻せないので、先にバックアップを書き出してください。</p>
+      <p className="mb-3 text-xs text-stone-500">この端末の記録・写真・薬と肌ケア用品の一覧をすべて消し、食材の一覧を最初の状態に戻します。元に戻せないので、先にバックアップを書き出してください。</p>
       <button
         className={`${btn} border border-red-300 text-red-600`}
         onClick={async () => {
