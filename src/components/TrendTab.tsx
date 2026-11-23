@@ -7,14 +7,15 @@ import { dailySeries } from '../lib/series';
 import PeriodSwitch from './PeriodSwitch';
 
 type Props = {
-  field: 'weightKg' | 'sleepHours';
+  field: 'weightKg' | 'sleepHours' | 'calories';
+  decimals?: number;
   unit: string;
   kind: 'line' | 'bar';
   showChange: boolean;
   openInput: (date: string) => void;
 };
 
-export default function TrendTab({ field, unit, kind, showChange, openInput }: Props) {
+export default function TrendTab({ field, unit, kind, showChange, openInput, decimals = 1 }: Props) {
   const [period, setPeriod] = useState<Period>('1m');
   const today = todayTokyo();
 
@@ -31,14 +32,14 @@ export default function TrendTab({ field, unit, kind, showChange, openInput }: P
   const map = new Map(all.filter((x) => x.date >= addDays(start, -6)).map((x) => [x.date, x.v]));
   const series = dailySeries(map, start, today);
   const inRange = all.filter((x) => x.date >= start && x.date <= today);
-  const fmt = (v: number) => v.toFixed(1);
+  const fmt = (v: number) => (decimals === 0 ? Math.round(v).toLocaleString('ja-JP') : v.toFixed(decimals));
   const latest = all[all.length - 1];
   const avg = inRange.length ? inRange.reduce((s, x) => s + x.v, 0) / inRange.length : undefined;
   const change = inRange.length >= 2 ? inRange[inRange.length - 1].v - inRange[0].v : undefined;
 
   const vals = inRange.map((x) => x.v);
   const domain: [number, number] =
-    kind === 'bar' ? [0, Math.max(10, Math.ceil(Math.max(...vals, 0)))] : [Math.floor(Math.min(...vals) - 1), Math.ceil(Math.max(...vals) + 1)];
+    kind === 'bar' ? [0, decimals === 0 ? Math.ceil(Math.max(...vals, 500) / 500) * 500 : Math.max(10, Math.ceil(Math.max(...vals, 0)))] : [Math.floor(Math.min(...vals) - 1), Math.ceil(Math.max(...vals) + 1)];
 
   return (
     <div>
@@ -63,7 +64,7 @@ export default function TrendTab({ field, unit, kind, showChange, openInput }: P
             <YAxis domain={domain} tick={{ fontSize: 11 }} allowDecimals={false} />
             <Tooltip
               labelFormatter={(d) => formatLong(String(d))}
-              formatter={(v, name) => [v == null ? '—' : `${Number(v).toFixed(1)} ${unit}`, name === 'ma' ? '7日平均' : '記録']}
+              formatter={(v, name) => [v == null ? '—' : `${fmt(Number(v))} ${unit}`, name === 'ma' ? '7日平均' : '記録']}
             />
             {kind === 'bar' ? (
               <Bar dataKey="value" fill="#f3c8cd" isAnimationActive={false} />

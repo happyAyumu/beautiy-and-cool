@@ -55,6 +55,7 @@ export default function InputTab({ date, setDate }: { date: string; setDate: (d:
 type Form = {
   weight: string;
   sleep: string;
+  calories: string;
   acne: string;
   redness?: Score;
   oiliness?: Score;
@@ -74,6 +75,7 @@ function toForm(l: DailyLog | undefined, prevWeight: number | undefined): Form {
   return {
     weight: l ? (l.weightKg?.toFixed(1) ?? '') : (prevWeight?.toFixed(1) ?? ''),
     sleep: l?.sleepHours?.toFixed(1) ?? '',
+    calories: l?.calories?.toString() ?? '',
     acne: l?.newAcneCount?.toString() ?? '',
     redness: l?.redness,
     oiliness: l?.oiliness,
@@ -96,12 +98,12 @@ function parseDecimal(s: string, min: number, max: number): number | undefined |
   return n < min || n > max ? 'error' : n;
 }
 
-function parseInt0(s: string): number | undefined | 'error' {
+function parseInt0(s: string, max = 999): number | undefined | 'error' {
   const t = norm(s);
   if (t === '') return undefined;
   if (!/^\d+$/.test(t)) return 'error';
   const n = Number(t);
-  return n > 999 ? 'error' : n;
+  return n > max ? 'error' : n;
 }
 
 function DayForm({ date }: { date: string }) {
@@ -158,8 +160,10 @@ function DayForm({ date }: { date: string }) {
     const weightKg = parseDecimal(form.weight, 20, 300);
     const sleepHours = parseDecimal(form.sleep, 0, 24);
     const newAcneCount = parseInt0(form.acne);
+    const calories = parseInt0(form.calories.replace(/[,，]/g, ''), 20000);
     if (weightKg === 'error') return setError('体重は 20〜300 の数字で入力してください');
     if (sleepHours === 'error') return setError('睡眠時間は 0〜24 の数字で入力してください');
+    if (calories === 'error') return setError('カロリーは 0〜20000 の整数で入力してください');
     if (newAcneCount === 'error') return setError('新規ニキビは 0 以上の整数で入力してください');
     setError(undefined);
     setSaving(true);
@@ -170,6 +174,7 @@ function DayForm({ date }: { date: string }) {
       date,
       weightKg,
       sleepHours,
+      calories,
       newAcneCount,
       redness: form.redness,
       oiliness: form.oiliness,
@@ -238,6 +243,21 @@ function DayForm({ date }: { date: string }) {
               />
               <span className="shrink-0 text-sm text-stone-500">時間</span>
             </div>
+          </div>
+        </div>
+        <div className="mt-4">
+          <p className="mb-1 text-sm font-bold text-stone-600">摂取カロリー</p>
+          <div className="flex items-baseline gap-1">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={form.calories}
+              onChange={(e) => set('calories', e.target.value)}
+              placeholder="2000"
+              className="h-12 w-40 min-w-0 rounded-xl border-2 border-stone-200 px-3 text-right text-xl focus:border-brand-300 focus:outline-none"
+            />
+            <span className="shrink-0 text-sm text-stone-500">kcal</span>
+            <span className="ml-2 text-[11px] text-stone-400">その日の合計</span>
           </div>
         </div>
       </Card>

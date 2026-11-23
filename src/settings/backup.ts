@@ -79,6 +79,7 @@ function cleanLog(r: Record<string, unknown>): DailyLog | undefined {
     date: r.date,
     weightKg: num(r.weightKg),
     sleepHours: num(r.sleepHours),
+    calories: num(r.calories),
     newAcneCount: num(r.newAcneCount),
     redness: score(r.redness),
     oiliness: score(r.oiliness),

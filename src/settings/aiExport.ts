@@ -10,12 +10,12 @@ export async function buildAiMarkdown(period: Period): Promise<string> {
   const logs: DailyLog[] = await db.logs.where('date').between(start, today, true, true).toArray();
   const products = new Map((await db.products.toArray()).map((p) => [p.id, p]));
 
-  const header = ['日付', '体重(kg)', '睡眠時間(時間)', '新規ニキビ(個)', '赤み', 'テカリ', '毛穴・跡', '乾燥', 'ひげ周り', 'ひげ周りメモ', 'メモ', '使った薬・肌ケア用品'];
+  const header = ['日付', '体重(kg)', '睡眠時間(時間)', '摂取カロリー(kcal)', '新規ニキビ(個)', '赤み', 'テカリ', '毛穴・跡', '乾燥', 'ひげ周り', 'ひげ周りメモ', 'メモ', '使った薬・肌ケア用品'];
   const lines = [
     '# 体重・睡眠・美容の記録',
     '',
     `期間: ${start} 〜 ${today}（記録日数: ${logs.length}日）`,
-    '赤み・テカリ・毛穴・跡・ひげ周りは 1〜5 の自己評価（1 = 目立たない、5 = 強く目立つ）。新規ニキビはその日に気づいた新しいニキビの個数、乾燥は粉吹き・突っ張りの有無、体重は起床直後の値、使った薬・肌ケア用品は名前と使った時間帯（朝・昼・夜・その他）。空欄は未入力。',
+    '赤み・テカリ・毛穴・跡・ひげ周りは 1〜5 の自己評価（1 = 目立たない、5 = 強く目立つ）。新規ニキビはその日に気づいた新しいニキビの個数、乾燥は粉吹き・突っ張りの有無、体重は起床直後の値、摂取カロリーはその日に食べたものの合計、使った薬・肌ケア用品は名前と使った時間帯（朝・昼・夜・その他）。空欄は未入力。',
     '',
     `| ${header.join(' | ')} |`,
     `| ${header.map(() => '---').join(' | ')} |`,
@@ -25,6 +25,7 @@ export async function buildAiMarkdown(period: Period): Promise<string> {
           l.date,
           l.weightKg?.toFixed(1),
           l.sleepHours?.toFixed(1),
+          l.calories,
           l.newAcneCount,
           l.redness,
           l.oiliness,

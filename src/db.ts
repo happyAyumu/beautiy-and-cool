@@ -24,6 +24,7 @@ export type DailyLog = {
   date: string; // YYYY-MM-DD
   weightKg?: number;
   sleepHours?: number;
+  calories?: number;       // 摂取カロリー kcal（整数）
   newAcneCount?: number;
   redness?: Score;
   oiliness?: Score;
