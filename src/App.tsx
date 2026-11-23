@@ -33,14 +33,15 @@ export default function App() {
   return (
     <div className="mx-auto flex min-h-full max-w-lg flex-col">
       <header
-        className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-4"
+        className="sticky top-0 z-10 flex items-center justify-center bg-white px-4 shadow-[0_1px_6px_rgba(120,60,70,0.06)]"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        <h1 className="py-3 text-lg font-bold">{TITLE[tab]}</h1>
+        <h1 className="py-3.5 text-lg font-bold text-stone-700">{TITLE[tab]}</h1>
         <button
           aria-label="設定"
           onClick={() => setSettingsOpen(true)}
-          className="-mr-2 flex h-11 w-11 items-center justify-center text-slate-600"
+          className="absolute right-2 flex h-11 w-11 items-center justify-center text-stone-500"
+          style={{ top: 'env(safe-area-inset-top)' }}
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3" />
@@ -57,7 +58,7 @@ export default function App() {
       </main>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white"
+        className="fixed inset-x-0 bottom-0 z-10 bg-white shadow-[0_-1px_8px_rgba(120,60,70,0.08)]"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="mx-auto flex max-w-lg">
@@ -69,9 +70,9 @@ export default function App() {
                 setTab(t.id);
                 window.scrollTo(0, 0);
               }}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs ${tab === t.id ? 'font-bold text-teal-700' : 'text-slate-500'}`}
+              className={`flex flex-1 flex-col items-center gap-1 pt-2.5 pb-2 text-[11px] ${tab === t.id ? 'font-bold text-brand-500' : 'text-stone-400'}`}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d={t.icon} />
               </svg>
               {t.label}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, getMeta } from '../db';
+import { db, getMeta, setMeta } from '../db';
 import { daysBetween, isoToTokyoDate, stampTokyo, todayTokyo, type Period } from '../lib/date';
 import { isIOS, isStandalone } from '../components/Notices';
 import PeriodSwitch from '../components/PeriodSwitch';
@@ -11,21 +11,22 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   return (
     <div className="mx-auto min-h-full max-w-lg pb-10">
       <header
-        className="sticky top-0 z-10 flex items-center border-b border-slate-200 bg-white px-2"
+        className="sticky top-0 z-10 flex items-center border-b border-stone-200 bg-white px-2"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        <button onClick={onClose} className="h-12 px-2 text-teal-700">
+        <button onClick={onClose} className="h-12 px-2 text-brand-500">
           ‹ 戻る
         </button>
         <h1 className="flex-1 pr-16 text-center text-lg font-bold">設定（バックアップ）</h1>
       </header>
       <div className="space-y-4 px-4 pt-4">
         <IphoneNote />
+        <ContestCard />
         <BackupCard />
         <RestoreCard />
         <AiExportCard />
         <DeleteCard />
-        <p className="text-center text-xs text-slate-400">データはこの端末の中だけに保存され、外部には送信されません。</p>
+        <p className="text-center text-xs text-stone-400">データはこの端末の中だけに保存され、外部には送信されません。</p>
       </div>
     </div>
   );
@@ -33,16 +34,16 @@ export default function Settings({ onClose }: { onClose: () => void }) {
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl bg-white p-4 shadow-sm">
+    <section className="rounded-2xl bg-white p-4 shadow-[0_1px_6px_rgba(120,60,70,0.06)]">
       <h2 className="mb-2 font-bold">{title}</h2>
       {children}
     </section>
   );
 }
 
-const btn = 'h-12 w-full rounded-xl font-bold disabled:opacity-50';
-const primary = `${btn} bg-teal-700 text-white`;
-const secondary = `${btn} border border-teal-700 text-teal-700`;
+const btn = 'h-12 w-full rounded-full font-bold disabled:opacity-50';
+const primary = `${btn} bg-brand-500 text-white`;
+const secondary = `${btn} border border-brand-500 text-brand-500`;
 
 function IphoneNote() {
   return (
@@ -53,6 +54,25 @@ function IphoneNote() {
       </p>
       {isIOS() && <p className="mt-1">いまは {isStandalone() ? 'ホーム画面のアプリ' : 'Safari'} で開いています。</p>}
     </div>
+  );
+}
+
+function ContestCard() {
+  const contest = useLiveQuery(async () => (await getMeta('contestDate')) ?? '');
+  if (contest === undefined) return null;
+  return (
+    <Card title="大会の日">
+      <p className="mb-2 text-xs text-stone-500">入れておくと、「入力する」画面に大会までの残り日数が出ます。</p>
+      <input
+        type="date"
+        value={contest}
+        onChange={async (e) => {
+          if (e.target.value) await setMeta('contestDate', e.target.value);
+          else await db.meta.delete('contestDate');
+        }}
+        className="h-12 w-full rounded-xl border-2 border-stone-200 bg-white px-3"
+      />
+    </Card>
   );
 }
 
@@ -104,12 +124,12 @@ function BackupCard() {
           {last ? `${isoToTokyoDate(last)}（${days}日前）` : 'まだありません'}
         </span>
       </p>
-      <p className="mb-3 text-xs text-slate-500">
+      <p className="mb-3 text-xs text-stone-500">
         記録 {counts?.logs ?? '-'} 日分・写真 {counts?.photos ?? '-'} 枚を 1つの zip にします。共有メニューから「ファイルに保存」（iCloud Drive など）や Google ドライブを選んでください。
       </p>
       {file ? (
         <>
-          <p className="mb-2 text-sm text-teal-800">準備ができました（{(file.size / 1024 / 1024).toFixed(1)} MB）</p>
+          <p className="mb-2 text-sm text-brand-700">準備ができました（{(file.size / 1024 / 1024).toFixed(1)} MB）</p>
           <button className={primary} onClick={share}>
             保存先を選ぶ（共有メニュー）
           </button>
@@ -119,7 +139,7 @@ function BackupCard() {
           {busy ? '作成中…' : 'バックアップを書き出す'}
         </button>
       )}
-      {msg && <p className="mt-2 text-sm text-slate-600">{msg}</p>}
+      {msg && <p className="mt-2 text-sm text-stone-600">{msg}</p>}
     </Card>
   );
 }
@@ -160,7 +180,7 @@ function RestoreCard() {
 
   return (
     <Card title="バックアップから復元する">
-      <p className="mb-3 text-xs text-slate-500">書き出した zip ファイルを選んでください。読み込む前に確認画面が出ます。</p>
+      <p className="mb-3 text-xs text-stone-500">書き出した zip ファイルを選んでください。読み込む前に確認画面が出ます。</p>
       <button className={secondary} onClick={() => ref.current?.click()} disabled={busy}>
         {busy && !parsed ? '読み込み中…' : 'zip ファイルを選ぶ'}
       </button>
@@ -175,17 +195,18 @@ function RestoreCard() {
           if (f) pick(f);
         }}
       />
-      {msg && <p className="mt-2 text-sm text-slate-700">{msg}</p>}
+      {msg && <p className="mt-2 text-sm text-stone-700">{msg}</p>}
 
       {parsed && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
           <div className="w-full max-w-md rounded-2xl bg-white p-4" style={{ marginBottom: 'env(safe-area-inset-bottom)' }}>
             <h3 className="mb-2 text-lg font-bold">復元の確認</h3>
             <p className="text-sm">
-              記録 <b>{parsed.logs.length}</b> 日分・写真 <b>{parsed.photos.length}</b> 枚を読み込みます。
+              記録 <b>{parsed.logs.length}</b> 日分・写真 <b>{parsed.photos.length}</b> 枚
+              {parsed.products.length > 0 && <>・薬と肌ケア用品 <b>{parsed.products.length}</b> 件</>}を読み込みます。
             </p>
             {parsed.dates.length > 0 && (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-stone-500">
                 対象: {parsed.dates[0]} 〜 {parsed.dates[parsed.dates.length - 1]}
                 {parsed.exportedAt && `（${isoToTokyoDate(parsed.exportedAt)} に書き出し）`}
               </p>
@@ -201,17 +222,17 @@ function RestoreCard() {
                     ['overwrite', '上書きする（バックアップの内容にする）'],
                   ] as const
                 ).map(([v, l]) => (
-                  <label key={v} className="mt-2 flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                  <label key={v} className="mt-2 flex min-h-11 items-center gap-2 rounded-lg border border-stone-300 px-3 py-2 text-sm">
                     <input type="radio" name="mode" checked={mode === v} onChange={() => setMode(v)} />
                     {l}
                   </label>
                 ))}
               </div>
             ) : (
-              <p className="mt-2 text-sm text-slate-600">端末にある記録と重なる日はありません。</p>
+              <p className="mt-2 text-sm text-stone-600">端末にある記録と重なる日はありません。</p>
             )}
             <div className="mt-4 flex gap-2">
-              <button className={`${btn} border border-slate-300 text-slate-700`} onClick={() => setParsed(undefined)} disabled={busy}>
+              <button className={`${btn} border border-stone-300 text-stone-700`} onClick={() => setParsed(undefined)} disabled={busy}>
                 やめる
               </button>
               <button className={primary} onClick={run} disabled={busy}>
@@ -243,9 +264,9 @@ function AiExportCard() {
 
   return (
     <Card title="AI用に書き出す">
-      <p className="mb-2 text-xs text-slate-500">AI のチャットに貼り付けて読ませるための表（Markdown）です。写真は含みません。</p>
+      <p className="mb-2 text-xs text-stone-500">AI のチャットに貼り付けて読ませるための表（Markdown）です。写真は含みません。</p>
       <PeriodSwitch value={period} onChange={setPeriod} />
-      <pre className="mt-3 max-h-60 overflow-auto rounded-lg bg-slate-100 p-2 text-[11px] leading-snug whitespace-pre">{text}</pre>
+      <pre className="mt-3 max-h-60 overflow-auto rounded-lg bg-stone-100 p-2 text-[11px] leading-snug whitespace-pre">{text}</pre>
       <div className="mt-3 flex gap-2">
         <button
           className={primary}
@@ -257,7 +278,7 @@ function AiExportCard() {
           ファイルで渡す
         </button>
       </div>
-      {msg && <p className="mt-2 text-sm text-slate-600">{msg}</p>}
+      {msg && <p className="mt-2 text-sm text-stone-600">{msg}</p>}
     </Card>
   );
 }
@@ -266,7 +287,7 @@ function DeleteCard() {
   const [msg, setMsg] = useState<string>();
   return (
     <Card title="全データを削除">
-      <p className="mb-3 text-xs text-slate-500">この端末の記録と写真をすべて消します。元に戻せないので、先にバックアップを書き出してください。</p>
+      <p className="mb-3 text-xs text-stone-500">この端末の記録・写真・薬と肌ケア用品の一覧をすべて消します。元に戻せないので、先にバックアップを書き出してください。</p>
       <button
         className={`${btn} border border-red-300 text-red-600`}
         onClick={async () => {
@@ -278,7 +299,7 @@ function DeleteCard() {
       >
         全データを削除する
       </button>
-      {msg && <p className="mt-2 text-sm text-slate-600">{msg}</p>}
+      {msg && <p className="mt-2 text-sm text-stone-600">{msg}</p>}
     </Card>
   );
 }

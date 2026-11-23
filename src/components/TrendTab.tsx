@@ -23,8 +23,8 @@ export default function TrendTab({ field, unit, kind, showChange, openInput }: P
     return logs.map((l) => ({ date: l.date, v: l[field] as number }));
   }, [field]);
 
-  if (!all) return <p className="text-slate-500">読み込み中…</p>;
-  if (all.length === 0) return <p className="text-slate-500">まだ記録がありません。「入力する」タブから記録してください。</p>;
+  if (!all) return <p className="text-stone-500">読み込み中…</p>;
+  if (all.length === 0) return <p className="text-stone-500">まだ記録がありません。「入力する」タブから記録してください。</p>;
 
   const start = periodStart(period, today, all[0].date);
   // 移動平均のため、期間の6日前から値を持っておく
@@ -55,7 +55,7 @@ export default function TrendTab({ field, unit, kind, showChange, openInput }: P
         )}
       </div>
 
-      <div className="mt-3 h-64 rounded-xl bg-white p-2 shadow-sm">
+      <div className="mt-3 h-64 rounded-2xl bg-white p-2 shadow-[0_1px_6px_rgba(120,60,70,0.06)]">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={series} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
             <CartesianGrid stroke="#e2e8f0" vertical={false} />
@@ -66,30 +66,30 @@ export default function TrendTab({ field, unit, kind, showChange, openInput }: P
               formatter={(v, name) => [v == null ? '—' : `${Number(v).toFixed(1)} ${unit}`, name === 'ma' ? '7日平均' : '記録']}
             />
             {kind === 'bar' ? (
-              <Bar dataKey="value" fill="#99d5cc" isAnimationActive={false} />
+              <Bar dataKey="value" fill="#f3c8cd" isAnimationActive={false} />
             ) : (
-              <Line dataKey="value" stroke="#94a3b8" strokeWidth={1} dot={{ r: 2.5, fill: '#64748b', stroke: 'none' }} connectNulls={false} isAnimationActive={false} />
+              <Line dataKey="value" stroke="#cdbcbf" strokeWidth={1} dot={{ r: 2.5, fill: '#a38f93', stroke: 'none' }} connectNulls={false} isAnimationActive={false} />
             )}
-            <Line dataKey="ma" stroke="#0f766e" strokeWidth={2.5} dot={false} connectNulls={false} isAnimationActive={false} />
+            <Line dataKey="ma" stroke="#b05764" strokeWidth={2.5} dot={false} connectNulls={false} isAnimationActive={false} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
-      <p className="mt-1 text-xs text-slate-500">
-        {kind === 'bar' ? '棒' : '点'} = 日別の記録、緑の線 = 7日移動平均
+      <p className="mt-1 text-xs text-stone-500">
+        {kind === 'bar' ? '棒' : '点'} = 日別の記録、濃い線 = 7日移動平均
       </p>
 
-      <ul className="mt-4 divide-y divide-slate-100 rounded-xl bg-white shadow-sm">
+      <ul className="mt-4 divide-y divide-stone-100 rounded-2xl bg-white shadow-[0_1px_6px_rgba(120,60,70,0.06)]">
         {[...inRange].reverse().map((x) => (
           <li key={x.date}>
             <button onClick={() => openInput(x.date)} className="flex h-12 w-full items-center justify-between px-4">
-              <span className="text-slate-600">{formatLong(x.date)}</span>
+              <span className="text-stone-600">{formatLong(x.date)}</span>
               <span className="font-bold">
-                {fmt(x.v)} <span className="text-sm font-normal text-slate-500">{unit}</span> <span className="text-slate-300">›</span>
+                {fmt(x.v)} <span className="text-sm font-normal text-stone-500">{unit}</span> <span className="text-stone-300">›</span>
               </span>
             </button>
           </li>
         ))}
-        {inRange.length === 0 && <li className="p-4 text-sm text-slate-500">この期間の記録はありません</li>}
+        {inRange.length === 0 && <li className="p-4 text-sm text-stone-500">この期間の記録はありません</li>}
       </ul>
     </div>
   );
@@ -97,11 +97,11 @@ export default function TrendTab({ field, unit, kind, showChange, openInput }: P
 
 function Stat({ label, value, unit }: { label: string; value: string; unit: string }) {
   return (
-    <div className="rounded-xl bg-white p-2 shadow-sm">
-      <p className="text-[11px] text-slate-500">{label}</p>
+    <div className="rounded-2xl bg-white p-2 shadow-[0_1px_6px_rgba(120,60,70,0.06)]">
+      <p className="text-[11px] text-stone-500">{label}</p>
       <p className="text-lg font-bold">
         {value}
-        <span className="ml-0.5 text-xs font-normal text-slate-500">{unit}</span>
+        <span className="ml-0.5 text-xs font-normal text-stone-500">{unit}</span>
       </p>
     </div>
   );
