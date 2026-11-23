@@ -114,7 +114,7 @@ function DayMeals({ date }: { date: string }) {
         onCaloriesBlur={saveManual}
       />
       {msg && (
-        <p className="pointer-events-none absolute inset-x-0 -bottom-3 mx-auto w-max rounded-full bg-stone-700/85 px-4 py-1.5 text-sm text-white">{msg}</p>
+        <p className="pointer-events-none fixed inset-x-0 z-40 mx-auto w-max rounded-full bg-stone-700/85 px-4 py-1.5 text-sm text-white" style={{ bottom: 'calc(5.5rem + env(safe-area-inset-bottom))' }}>{msg}</p>
       )}
     </div>
   );

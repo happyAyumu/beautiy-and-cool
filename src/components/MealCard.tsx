@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, newId, type Food, type MealItem } from '../db';
 import { fmtNutrient, NUTRIENTS, scale, sumNutrients, type NutrientDef } from '../lib/nutrients';
-import Card from './Card';
+import FoldCard from './FoldCard';
 import Sheet from './Sheet';
 import FoodEditor from './FoodEditor';
 import TemplateBar from './TemplateBar';
@@ -23,9 +23,15 @@ export default function MealCard({
   const [amountFor, setAmountFor] = useState<{ food?: Food; item?: MealItem }>();
   const [detail, setDetail] = useState(false);
   const { total } = sumNutrients(meals.map((m) => m.nutrients));
+  const manual = calories.trim();
+  const summary = meals.length
+    ? `合計 ${fmtNutrient(K('kcal'), total.kcal)} kcal（${meals.length}品）`
+    : manual
+      ? `${/^\d+$/.test(manual) ? Number(manual).toLocaleString('ja-JP') : manual} kcal（直接入力）`
+      : 'まだ記録なし';
 
   return (
-    <Card title="食べたもの・カロリー">
+    <FoldCard title="食べたもの・カロリー" summary={summary}>
       <TemplateBar meals={meals} onApply={(items) => setMeals([...meals, ...items])} />
       {meals.length > 0 ? (
         <>
@@ -105,7 +111,7 @@ export default function MealCard({
         />
       )}
       {detail && <NutritionDetail meals={meals} onClose={() => setDetail(false)} />}
-    </Card>
+    </FoldCard>
   );
 }
 
