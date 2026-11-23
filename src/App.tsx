@@ -55,7 +55,7 @@ export default function App() {
       <main className="flex-1 px-4 pt-4" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
         {tab === 'input' && <InputTab date={inputDate} setDate={setInputDate} />}
         {tab === 'weight' && <WeightTab openInput={openInput} />}
-        {tab === 'calorie' && <CalorieTab openInput={openInput} />}
+        {tab === 'calorie' && <CalorieTab />}
         {tab === 'sleep' && <SleepTab openInput={openInput} />}
         {tab === 'beauty' && <BeautyTab openInput={openInput} />}
       </main>

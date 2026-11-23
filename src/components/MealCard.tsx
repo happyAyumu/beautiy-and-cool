@@ -10,12 +10,13 @@ const K = (key: string) => NUTRIENTS.find((n) => n.key === key)!;
 
 /** 食べたもの・カロリー */
 export default function MealCard({
-  meals, setMeals, calories, setCalories,
+  meals, setMeals, calories, setCalories, onCaloriesBlur,
 }: {
   meals: MealItem[];
   setMeals: (m: MealItem[]) => void;
   calories: string;
   setCalories: (s: string) => void;
+  onCaloriesBlur?: () => void;
 }) {
   const [picking, setPicking] = useState(false);
   const [amountFor, setAmountFor] = useState<{ food?: Food; item?: MealItem }>();
@@ -67,12 +68,14 @@ export default function MealCard({
               inputMode="numeric"
               value={calories}
               onChange={(e) => setCalories(e.target.value)}
+              onBlur={onCaloriesBlur}
+              onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
               placeholder="2000"
               className="h-12 w-36 min-w-0 rounded-xl border-2 border-stone-200 px-3 text-right text-xl focus:border-brand-300 focus:outline-none"
             />
             <span className="shrink-0 text-sm text-stone-500">kcal</span>
           </div>
-          <p className="mt-1 text-[11px] text-stone-400">食べたものを追加すると、自動で合計されます（外食など、合計だけ入れたい日は直接入力）</p>
+          <p className="mt-1 text-[11px] text-stone-400">食べたものを追加すると自動で合計されます。外食など合計だけ入れたい日は、ここに直接入力してください（入力欄を離れると保存）</p>
         </div>
       )}
       <button onClick={() => setPicking(true)} className="mt-2 h-12 w-full rounded-xl border-2 border-dashed border-brand-300 font-bold text-brand-500">

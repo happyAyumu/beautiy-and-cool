@@ -77,6 +77,17 @@ class AppDB extends Dexie {
     this.version(3)
       .stores({ logs: 'date', photos: 'id, date', meta: 'key', products: 'id', foods: 'id' })
       .upgrade((tx) => tx.table('foods').bulkPut(seedFoods()));
+    // 要確認はヤンニョムチキンだけにする
+    this.version(4)
+      .stores({ logs: 'date', photos: 'id, date', meta: 'key', products: 'id', foods: 'id' })
+      .upgrade((tx) =>
+        tx
+          .table('foods')
+          .toCollection()
+          .modify((f: Food) => {
+            if (f.id !== 'seed-yangnyeom') delete f.needsCheck;
+          }),
+      );
     this.on('populate', (tx) => {
       tx.table('foods').bulkAdd(seedFoods());
     });

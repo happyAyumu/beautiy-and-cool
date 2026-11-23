@@ -9,13 +9,14 @@ import PeriodSwitch from './PeriodSwitch';
 type Props = {
   field: 'weightKg' | 'sleepHours' | 'calories';
   decimals?: number;
+  emptyText?: string;
   unit: string;
   kind: 'line' | 'bar';
   showChange: boolean;
   openInput: (date: string) => void;
 };
 
-export default function TrendTab({ field, unit, kind, showChange, openInput, decimals = 1 }: Props) {
+export default function TrendTab({ field, unit, kind, showChange, openInput, decimals = 1, emptyText }: Props) {
   const [period, setPeriod] = useState<Period>('1m');
   const today = todayTokyo();
 
@@ -25,7 +26,7 @@ export default function TrendTab({ field, unit, kind, showChange, openInput, dec
   }, [field]);
 
   if (!all) return <p className="text-stone-500">読み込み中…</p>;
-  if (all.length === 0) return <p className="text-stone-500">まだ記録がありません。「入力する」タブから記録してください。</p>;
+  if (all.length === 0) return <p className="text-stone-500">{emptyText ?? 'まだ記録がありません。「入力する」タブから記録してください。'}</p>;
 
   const start = periodStart(period, today, all[0].date);
   // 移動平均のため、期間の6日前から値を持っておく

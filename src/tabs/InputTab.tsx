@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   db, hasBeautyFields, KIND_LABEL, photoId, SLOT_LABEL, SLOTS, TIMING_LABEL, TIMINGS,
-  type DailyLog, type MealItem, type PhotoSlot, type Product, type ProductKind, type Score, type Timing,
+  type DailyLog, type PhotoSlot, type Product, type ProductKind, type Score, type Timing,
 } from '../db';
 import { addDays, formatLong, formatShort, todayTokyo } from '../lib/date';
 import { resizeToJpeg } from '../lib/image';
@@ -11,8 +11,6 @@ import ScoreButtons, { chip } from '../components/ScoreButtons';
 import PhotoViewer from '../components/PhotoViewer';
 import Card from '../components/Card';
 import Motivation from '../components/Motivation';
-import MealCard from '../components/MealCard';
-import { sumNutrients } from '../lib/nutrients';
 import ProductEditor from '../components/ProductEditor';
 import { BackupNotice, InstallNotice } from '../components/Notices';
 
@@ -57,8 +55,6 @@ export default function InputTab({ date, setDate }: { date: string; setDate: (d:
 type Form = {
   weight: string;
   sleep: string;
-  calories: string;
-  meals: MealItem[];
   acne: string;
   redness?: Score;
   oiliness?: Score;
@@ -78,8 +74,6 @@ function toForm(l: DailyLog | undefined, prevWeight: number | undefined): Form {
   return {
     weight: l ? (l.weightKg?.toFixed(1) ?? '') : (prevWeight?.toFixed(1) ?? ''),
     sleep: l?.sleepHours?.toFixed(1) ?? '',
-    calories: l?.calories?.toString() ?? '',
-    meals: l?.meals ?? [],
     acne: l?.newAcneCount?.toString() ?? '',
     redness: l?.redness,
     oiliness: l?.oiliness,
@@ -164,12 +158,8 @@ function DayForm({ date }: { date: string }) {
     const weightKg = parseDecimal(form.weight, 20, 300);
     const sleepHours = parseDecimal(form.sleep, 0, 24);
     const newAcneCount = parseInt0(form.acne);
-    const calories = form.meals.length
-      ? Math.round(sumNutrients(form.meals.map((m) => m.nutrients)).total.kcal ?? 0)
-      : parseInt0(form.calories.replace(/[,，]/g, ''), 20000);
     if (weightKg === 'error') return setError('体重は 20〜300 の数字で入力してください');
     if (sleepHours === 'error') return setError('睡眠時間は 0〜24 の数字で入力してください');
-    if (calories === 'error') return setError('カロリーは 0〜20000 の整数で入力してください');
     if (newAcneCount === 'error') return setError('新規ニキビは 0 以上の整数で入力してください');
     setError(undefined);
     setSaving(true);
@@ -180,8 +170,6 @@ function DayForm({ date }: { date: string }) {
       date,
       weightKg,
       sleepHours,
-      calories,
-      meals: form.meals.length ? form.meals : undefined,
       newAcneCount,
       redness: form.redness,
       oiliness: form.oiliness,
@@ -193,10 +181,15 @@ function DayForm({ date }: { date: string }) {
       usage: usage.length ? usage : undefined,
       updatedAt: new Date().toISOString(),
     };
-    (Object.keys(log) as (keyof DailyLog)[]).forEach((k) => log[k] === undefined && delete log[k]);
-    const empty = Object.keys(log).length === 2 && SLOTS.every((s) => !photos[s]);
+    let empty = false;
     try {
       await db.transaction('rw', db.logs, db.photos, async () => {
+        // カロリー・食べたものは「カロリー」タブで保存しているので、そのまま残す
+        const cur = await db.logs.get(date);
+        if (cur?.calories !== undefined) log.calories = cur.calories;
+        if (cur?.meals) log.meals = cur.meals;
+        (Object.keys(log) as (keyof DailyLog)[]).forEach((k) => log[k] === undefined && delete log[k]);
+        empty = Object.keys(log).length === 2 && SLOTS.every((s) => !photos[s]);
         for (const slot of dirtySlots) {
           const blob = photos[slot];
           if (blob) await db.photos.put({ id: photoId(date, slot), date, slot, blob });
@@ -253,8 +246,6 @@ function DayForm({ date }: { date: string }) {
           </div>
         </div>
       </Card>
-
-      <MealCard meals={form.meals} setMeals={(m) => set('meals', m)} calories={form.calories} setCalories={(c) => set('calories', c)} />
 
       {(['medicine', 'skincare'] as ProductKind[]).map((kind) => (
         <Card key={kind} title={`使用中の${KIND_LABEL[kind]}`} action={<EditButton onClick={() => setEditing(kind)} />}>
