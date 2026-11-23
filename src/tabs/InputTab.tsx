@@ -258,15 +258,15 @@ function DayForm({ date }: { date: string }) {
         </FoldCard>
       ))}
 
-      <Card title="今日の写真">
+      <FoldCard title="今日の写真" summary={photoSummary(photos)}>
         <div className="grid grid-cols-3 gap-2">
           {SLOTS.map((s) => (
             <PhotoInput key={s} slot={s} blob={photos[s]} onChange={(b) => setPhoto(s, b)} />
           ))}
         </div>
-      </Card>
+      </FoldCard>
 
-      <Card title="今日の肌">
+      <FoldCard title="今日の肌" summary={skinSummary(form)}>
         <div className="space-y-5">
           <Field label="新規ニキビ" hint="その日に気づいた新しいニキビの個数">
             <div className="flex items-center gap-2">
@@ -319,7 +319,7 @@ function DayForm({ date }: { date: string }) {
             <textarea value={form.beardNote} onChange={(e) => set('beardNote', e.target.value)} rows={2} className="w-full rounded-xl border-2 border-stone-200 p-2" />
           </Field>
         </div>
-      </Card>
+      </FoldCard>
 
       <Card title="メモ">
         <p className="-mt-2 mb-2 text-xs text-stone-400">食事・薬など、その日の気づき</p>
@@ -339,6 +339,23 @@ function DayForm({ date }: { date: string }) {
   );
 }
 
+function photoSummary(photos: PhotoState): string {
+  const n = SLOTS.filter((s) => photos[s]).length;
+  return n ? `${SLOTS.filter((s) => photos[s]).map((s) => SLOT_LABEL[s]).join('・')}（${n}枚）` : 'まだありません';
+}
+
+function skinSummary(f: Form): string {
+  const parts: string[] = [];
+  if (norm(f.acne) !== '') parts.push(`ニキビ${norm(f.acne)}個`);
+  if (f.redness) parts.push(`赤み${f.redness}`);
+  if (f.oiliness) parts.push(`テカリ${f.oiliness}`);
+  if (f.poresScars) parts.push(`毛穴・跡${f.poresScars}`);
+  if (f.dryness !== undefined) parts.push(`乾燥${f.dryness ? 'あり' : 'なし'}`);
+  if (f.beardArea) parts.push(`ひげ周り${f.beardArea}`);
+  if (f.beardNote.trim()) parts.push('メモあり');
+  return parts.length ? parts.join('・') : 'まだ記録なし';
+}
+
 /** 閉じた状態で見せる「ベピオゲル 朝・夜 / 化粧水 朝」のような要約 */
 function usageSummary(items: Product[], usage: Record<string, Timing[]>): string {
   if (items.length === 0) return 'まだ登録がありません';
@@ -348,7 +365,7 @@ function usageSummary(items: Product[], usage: Record<string, Timing[]>): string
 }
 
 /** 見出しを押すと開閉するカード（最初は閉じている） */
-function FoldCard({ title, summary, action, children }: { title: string; summary: string; action: React.ReactNode; children: React.ReactNode }) {
+function FoldCard({ title, summary, action, children }: { title: string; summary: string; action?: React.ReactNode; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
     <section className="rounded-2xl bg-white shadow-[0_1px_6px_rgba(120,60,70,0.06)]">
@@ -360,7 +377,7 @@ function FoldCard({ title, summary, action, children }: { title: string; summary
             {!open && <span className="block truncate text-xs text-stone-400">{summary}</span>}
           </span>
         </button>
-        {open && <div className="shrink-0 pr-3">{action}</div>}
+        {open && action && <div className="shrink-0 pr-3">{action}</div>}
       </div>
       {open && <div className="px-4 pb-4">{children}</div>}
     </section>
