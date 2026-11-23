@@ -248,9 +248,14 @@ function DayForm({ date }: { date: string }) {
       </Card>
 
       {(['medicine', 'skincare'] as ProductKind[]).map((kind) => (
-        <Card key={kind} title={`使用中の${KIND_LABEL[kind]}`} action={<EditButton onClick={() => setEditing(kind)} />}>
+        <FoldCard
+          key={kind}
+          title={`使用中の${KIND_LABEL[kind]}`}
+          summary={usageSummary(listFor(kind), form.usage)}
+          action={<EditButton onClick={() => setEditing(kind)} />}
+        >
           <UsageList items={listFor(kind)} usage={form.usage} toggle={toggleUsage} kind={kind} onAdd={() => setEditing(kind)} />
-        </Card>
+        </FoldCard>
       ))}
 
       <Card title="今日の写真">
@@ -331,6 +336,34 @@ function DayForm({ date }: { date: string }) {
 
       {editing && <ProductEditor kind={editing} onClose={() => setEditing(undefined)} />}
     </div>
+  );
+}
+
+/** 閉じた状態で見せる「ベピオゲル 朝・夜 / 化粧水 朝」のような要約 */
+function usageSummary(items: Product[], usage: Record<string, Timing[]>): string {
+  if (items.length === 0) return 'まだ登録がありません';
+  const used = items.filter((p) => usage[p.id]?.length);
+  if (used.length === 0) return `${items.length}件・まだ記録なし`;
+  return used.map((p) => `${p.name} ${usage[p.id].map((t) => TIMING_LABEL[t]).join('・')}`).join(' / ');
+}
+
+/** 見出しを押すと開閉するカード（最初は閉じている） */
+function FoldCard({ title, summary, action, children }: { title: string; summary: string; action: React.ReactNode; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="rounded-2xl bg-white shadow-[0_1px_6px_rgba(120,60,70,0.06)]">
+      <div className="flex items-center">
+        <button onClick={() => setOpen(!open)} className="flex min-h-14 min-w-0 flex-1 items-center gap-2 py-3 pl-4 text-left" aria-expanded={open}>
+          <span className={`shrink-0 text-xs text-stone-400 transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
+          <span className="min-w-0">
+            <span className="block text-base font-bold text-stone-700">{title}</span>
+            {!open && <span className="block truncate text-xs text-stone-400">{summary}</span>}
+          </span>
+        </button>
+        {open && <div className="shrink-0 pr-3">{action}</div>}
+      </div>
+      {open && <div className="px-4 pb-4">{children}</div>}
+    </section>
   );
 }
 
