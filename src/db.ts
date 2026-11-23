@@ -34,6 +34,9 @@ export type Food = {
   createdAt: string;
 };
 
+/** 食事のテンプレート（朝の定番 など） */
+export type MealTemplate = { id: string; name: string; items: { foodId: string; grams: number }[]; createdAt: string };
+
 /** その日に食べたもの。食材をあとで直しても過去の記録が変わらないよう、栄養はその時点の値で保存する */
 export type MealItem = { id: string; foodId: string; name: string; grams: number; nutrients: Nutrients };
 
@@ -70,6 +73,7 @@ class AppDB extends Dexie {
   meta!: EntityTable<MetaRow, 'key'>;
   products!: EntityTable<Product, 'id'>;
   foods!: EntityTable<Food, 'id'>;
+  templates!: EntityTable<MealTemplate, 'id'>;
   constructor() {
     super('body-log');
     this.version(1).stores({ logs: 'date', photos: 'id, date', meta: 'key' });
@@ -88,6 +92,7 @@ class AppDB extends Dexie {
             if (f.id !== 'seed-yangnyeom') delete f.needsCheck;
           }),
       );
+    this.version(5).stores({ logs: 'date', photos: 'id, date', meta: 'key', products: 'id', foods: 'id', templates: 'id' });
     this.on('populate', (tx) => {
       tx.table('foods').bulkAdd(seedFoods());
     });

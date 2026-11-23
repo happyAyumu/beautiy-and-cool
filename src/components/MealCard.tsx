@@ -5,6 +5,7 @@ import { fmtNutrient, NUTRIENTS, scale, sumNutrients, type NutrientDef } from '.
 import Card from './Card';
 import Sheet from './Sheet';
 import FoodEditor from './FoodEditor';
+import TemplateBar from './TemplateBar';
 
 const K = (key: string) => NUTRIENTS.find((n) => n.key === key)!;
 
@@ -25,6 +26,7 @@ export default function MealCard({
 
   return (
     <Card title="食べたもの・カロリー">
+      <TemplateBar meals={meals} onApply={(items) => setMeals([...meals, ...items])} />
       {meals.length > 0 ? (
         <>
           <div className="mb-3 flex items-end justify-between rounded-xl bg-brand-50 px-4 py-3">
@@ -107,7 +109,7 @@ export default function MealCard({
   );
 }
 
-function FoodPicker({ onClose, onPick }: { onClose: () => void; onPick: (f: Food) => void }) {
+export function FoodPicker({ onClose, onPick }: { onClose: () => void; onPick: (f: Food) => void }) {
   const foods = useLiveQuery(() => db.foods.filter((f) => f.active).sortBy('createdAt'));
   const [creating, setCreating] = useState(false);
   return (
@@ -133,7 +135,7 @@ function FoodPicker({ onClose, onPick }: { onClose: () => void; onPick: (f: Food
   );
 }
 
-function AmountSheet({ food: f0, item, onClose, onDone }: { food?: Food; item?: MealItem; onClose: () => void; onDone: (m: MealItem) => void }) {
+export function AmountSheet({ food: f0, item, onClose, onDone }: { food?: Food; item?: MealItem; onClose: () => void; onDone: (m: MealItem) => void }) {
   const dbFood = useLiveQuery(() => (item ? db.foods.get(item.foodId) : undefined), [item?.foodId]);
   const food = f0 ?? dbFood;
   const [grams, setGrams] = useState(item ? String(item.grams) : food?.presets[0] ? String(food.presets[0].grams) : '100');

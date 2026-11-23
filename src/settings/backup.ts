@@ -1,20 +1,20 @@
 import JSZip from 'jszip';
 import { NUTRIENT_KEYS } from '../lib/nutrients';
-import { db, seedFoods, SLOTS, TIMINGS, photoId, setMeta, type DailyLog, type Photo, type PhotoSlot, type Food, type MealItem, type Product, type Score, type Timing, type Usage } from '../db';
+import { db, seedFoods, SLOTS, TIMINGS, photoId, setMeta, type DailyLog, type Photo, type PhotoSlot, type Food, type MealItem, type MealTemplate, type Product, type Score, type Timing, type Usage } from '../db';
 import { stampTokyo } from '../lib/date';
 
 type PhotoEntry = { id: string; date: string; slot: PhotoSlot; file: string };
-type BackupJson = { version: 3; exportedAt: string; logs: DailyLog[]; photos: PhotoEntry[]; products: Product[]; foods: Food[] };
+type BackupJson = { version: 3; exportedAt: string; logs: DailyLog[]; photos: PhotoEntry[]; products: Product[]; foods: Food[]; templates: MealTemplate[] };
 
 export async function createBackup(): Promise<File> {
-  const [logs, photos, products, foods] = await Promise.all([db.logs.toArray(), db.photos.toArray(), db.products.toArray(), db.foods.toArray()]);
+  const [logs, photos, products, foods, templates] = await Promise.all([db.logs.toArray(), db.photos.toArray(), db.products.toArray(), db.foods.toArray(), db.templates.toArray()]);
   const zip = new JSZip();
   const entries: PhotoEntry[] = photos.map((p) => {
     const file = `photos/${p.date}_${p.slot}.jpg`;
     zip.file(file, p.blob);
     return { id: p.id, date: p.date, slot: p.slot, file };
   });
-  const data: BackupJson = { version: 3, exportedAt: new Date().toISOString(), logs, photos: entries, products, foods };
+  const data: BackupJson = { version: 3, exportedAt: new Date().toISOString(), logs, photos: entries, products, foods, templates };
   zip.file('data.json', JSON.stringify(data, null, 1));
   const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/zip' });
   return new File([blob], `backup-${stampTokyo()}.zip`, { type: 'application/zip' });
@@ -51,6 +51,7 @@ export type ParsedBackup = {
   photos: Photo[];
   products: Product[];
   foods: Food[];
+  templates: MealTemplate[];
   dates: string[]; // 含まれる日付
   conflicts: string[]; // すでに端末にある日付
   exportedAt?: string;
@@ -84,6 +85,14 @@ function cleanFood(r: Record<string, unknown>): Food | undefined {
     id: r.id, name: r.name, per100: cleanNutrients(r.per100), presets, note: str(r.note),
     needsCheck: r.needsCheck === true ? true : undefined, active: r.active !== false, createdAt: str(r.createdAt) ?? new Date().toISOString(),
   };
+}
+
+function cleanTemplate(r: Record<string, unknown>): MealTemplate | undefined {
+  if (typeof r?.id !== 'string' || typeof r?.name !== 'string' || !Array.isArray(r.items)) return undefined;
+  const items = (r.items as Record<string, unknown>[])
+    .filter((i) => typeof i?.foodId === 'string' && typeof i?.grams === 'number')
+    .map((i) => ({ foodId: i.foodId as string, grams: i.grams as number }));
+  return { id: r.id, name: r.name, items, createdAt: str(r.createdAt) ?? new Date().toISOString() };
 }
 
 function cleanUsage(v: unknown): Usage[] | undefined {
@@ -146,16 +155,18 @@ export async function parseBackup(file: Blob): Promise<ParsedBackup> {
   }
   const products = (Array.isArray(data.products) ? data.products : []).map(cleanProduct).filter(Boolean) as Product[];
   const foods = (Array.isArray(data.foods) ? data.foods : []).map(cleanFood).filter(Boolean) as Food[];
+  const templates = (Array.isArray(data.templates) ? data.templates : []).map(cleanTemplate).filter(Boolean) as MealTemplate[];
   const dates = [...new Set([...logs.map((l) => l.date), ...photos.map((p) => p.date)])].sort();
   const existing = new Set<string>([...((await db.logs.toCollection().primaryKeys()) as string[]), ...((await db.photos.orderBy('date').uniqueKeys()) as string[])]);
-  return { logs, photos, products, foods, dates, conflicts: dates.filter((d) => existing.has(d)), exportedAt: str(data.exportedAt) };
+  return { logs, photos, products, foods, templates, dates, conflicts: dates.filter((d) => existing.has(d)), exportedAt: str(data.exportedAt) };
 }
 
 export async function applyBackup(b: ParsedBackup, mode: 'overwrite' | 'skip'): Promise<number> {
   const skip = new Set(mode === 'skip' ? b.conflicts : []);
   const target = b.dates.filter((d) => !skip.has(d));
   const set = new Set(target);
-  await db.transaction('rw', [db.logs, db.photos, db.products, db.foods], async () => {
+  await db.transaction('rw', [db.logs, db.photos, db.products, db.foods, db.templates], async () => {
+    await db.templates.bulkPut(b.templates);
     // 食材は、バックアップの値で上書き（端末で直した値より新しいとは限らないが、復元時はバックアップを正とする）
     await db.foods.bulkPut(b.foods);
     // 薬・肌ケア用品は、端末にないものだけ追加する（名前の変更は端末側を優先）
@@ -171,7 +182,8 @@ export async function applyBackup(b: ParsedBackup, mode: 'overwrite' | 'skip'): 
 }
 
 export async function deleteAll() {
-  await db.transaction('rw', [db.logs, db.photos, db.products, db.foods], async () => {
+  await db.transaction('rw', [db.logs, db.photos, db.products, db.foods, db.templates], async () => {
+    await db.templates.clear();
     await db.logs.clear();
     await db.photos.clear();
     await db.products.clear();
