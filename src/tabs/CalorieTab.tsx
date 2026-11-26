@@ -1,49 +1,89 @@
 import { useEffect, useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type DailyLog, type MealItem } from '../db';
 import { addDays, formatLong, todayTokyo } from '../lib/date';
 import { sumNutrients } from '../lib/nutrients';
 import MealCard from '../components/MealCard';
 import TrendTab from '../components/TrendTab';
 
-/** カロリーの入力（食べたもの）と推移 */
+/** カロリーの入力（食べたもの）と推移。上の切り替えで「記録」と「グラフ」を行き来する */
 export default function CalorieTab() {
   const today = todayTokyo();
   const [date, setDate] = useState(today);
+  const [view, setView] = useState<'input' | 'trend'>('input');
+  const avg7 = useLiveQuery(async () => {
+    const logs = await db.logs.where('date').between(addDays(today, -6), today, true, true).filter((l) => l.calories !== undefined).toArray();
+    return logs.length ? Math.round(logs.reduce((s, l) => s + l.calories!, 0) / logs.length) : undefined;
+  }, [today]);
+
   return (
     <div>
-      <div className="mb-4 flex items-center gap-2">
-        <button className="h-11 w-11 rounded-full bg-white text-xl text-stone-500 shadow-sm" onClick={() => setDate(addDays(date, -1))} aria-label="前の日">
-          ‹
-        </button>
-        <label className="relative flex h-12 flex-1 items-center justify-center text-xl font-bold text-stone-700">
-          {formatLong(date)}
-          <span className="ml-1 text-sm text-stone-400">▾</span>
-          {date === today && <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-bold text-brand-600">今日</span>}
-          <input type="date" value={date} max={today} onChange={(e) => e.target.value && setDate(e.target.value)} className="absolute inset-0 opacity-0" aria-label="日付を選ぶ" />
-        </label>
-        <button
-          className="h-11 w-11 rounded-full bg-white text-xl text-stone-500 shadow-sm disabled:opacity-30"
-          onClick={() => setDate(addDays(date, 1))}
-          disabled={date >= today}
-          aria-label="次の日"
-        >
-          ›
-        </button>
+      <div className="mb-4 flex rounded-full bg-white p-1 shadow-sm">
+        {(
+          [
+            ['input', '記録'],
+            ['trend', 'グラフ・推移'],
+          ] as const
+        ).map(([v, label]) => (
+          <button
+            key={v}
+            onClick={() => {
+              setView(v);
+              window.scrollTo(0, 0);
+            }}
+            className={`h-10 flex-1 rounded-full text-sm ${view === v ? 'bg-brand-500 font-bold text-white' : 'text-stone-500'}`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
-      <DayMeals key={date} date={date} />
-      <h2 className="mb-2 mt-6 font-bold text-stone-700">カロリーの推移</h2>
-      <TrendTab
-        field="calories"
-        unit="kcal"
-        kind="bar"
-        decimals={0}
-        showChange={false}
-        emptyText="記録するとグラフが出ます。"
-        openInput={(d) => {
-          setDate(d);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-      />
+
+      {view === 'input' ? (
+        <>
+          <div className="mb-3 flex items-center gap-2">
+            <button className="h-11 w-11 rounded-full bg-white text-xl text-stone-500 shadow-sm" onClick={() => setDate(addDays(date, -1))} aria-label="前の日">
+              ‹
+            </button>
+            <label className="relative flex h-11 flex-1 items-center justify-center text-lg font-bold text-stone-700">
+              {formatLong(date)}
+              <span className="ml-1 text-sm text-stone-400">▾</span>
+              {date === today && <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-bold text-brand-600">今日</span>}
+              <input type="date" value={date} max={today} onChange={(e) => e.target.value && setDate(e.target.value)} className="absolute inset-0 opacity-0" aria-label="日付を選ぶ" />
+            </label>
+            <button
+              className="h-11 w-11 rounded-full bg-white text-xl text-stone-500 shadow-sm disabled:opacity-30"
+              onClick={() => setDate(addDays(date, 1))}
+              disabled={date >= today}
+              aria-label="次の日"
+            >
+              ›
+            </button>
+          </div>
+          <DayMeals key={date} date={date} />
+          <button onClick={() => setView('trend')} className="mt-3 flex h-12 w-full items-center justify-between rounded-2xl bg-white px-4 text-sm shadow-sm">
+            <span className="text-stone-500">
+              直近7日の平均
+              <span className="ml-2 text-lg font-bold text-stone-700">{avg7 !== undefined ? avg7.toLocaleString('ja-JP') : '—'}</span>
+              <span className="ml-0.5 text-xs text-stone-400">kcal</span>
+            </span>
+            <span className="text-brand-600">グラフを見る ›</span>
+          </button>
+        </>
+      ) : (
+        <TrendTab
+          field="calories"
+          unit="kcal"
+          kind="bar"
+          decimals={0}
+          showChange={false}
+          emptyText="記録するとグラフが出ます。"
+          openInput={(d) => {
+            setDate(d);
+            setView('input');
+            window.scrollTo(0, 0);
+          }}
+        />
+      )}
     </div>
   );
 }
