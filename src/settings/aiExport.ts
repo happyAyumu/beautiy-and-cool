@@ -6,9 +6,7 @@ import { periodStart, todayTokyo, type Period } from '../lib/date';
 function mealsText(meals: MealItem[] | undefined): string | undefined {
   if (!meals?.length) return undefined;
   const list = (ms: MealItem[]) => ms.map((m) => `${m.name} ${m.grams}g`).join('、');
-  const groups = MEAL_SLOTS.filter((s) => meals.some((m) => m.slot === s)).map((s) => `${MEAL_SLOT_LABEL[s]}: ${list(meals.filter((m) => m.slot === s))}`);
-  const rest = meals.filter((m) => !m.slot);
-  if (rest.length) groups.push(groups.length ? `区分なし: ${list(rest)}` : list(rest));
+  const groups = MEAL_SLOTS.filter((s) => meals.some((m) => (m.slot ?? 'snack') === s)).map((s) => `${MEAL_SLOT_LABEL[s]}: ${list(meals.filter((m) => (m.slot ?? 'snack') === s))}`);
   return groups.join(' / ');
 }
 

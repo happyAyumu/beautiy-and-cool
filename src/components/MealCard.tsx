@@ -27,8 +27,8 @@ export default function MealCard({
   const [msg, setMsg] = useState<string>();
   const { total } = sumNutrients(meals.map((m) => m.nutrients));
   const kcalOf = (items: MealItem[]) => Math.round(items.reduce((s, m) => s + (m.nutrients.kcal ?? 0), 0));
-  const bySlot = (slot: MealSlot | undefined) => meals.filter((m) => m.slot === slot);
-  const unsorted = bySlot(undefined);
+  // 区分がない食べたもの（復元した古いバックアップなど）は間食として扱う
+  const bySlot = (slot: MealSlot) => meals.filter((m) => (m.slot ?? 'snack') === slot);
 
   const manual = calories.trim();
   const slotKcal = MEAL_SLOTS.filter((s) => bySlot(s).length).map((s) => `${MEAL_SLOT_LABEL[s]} ${kcalOf(bySlot(s)).toLocaleString('ja-JP')}`);
@@ -128,16 +128,6 @@ export default function MealCard({
             </div>
           );
         })}
-        {unsorted.length > 0 && (
-          <div className="rounded-xl border-2 border-stone-100 p-3">
-            <div className="mb-1 flex items-baseline justify-between">
-              <p className="font-bold text-stone-700">区分なし</p>
-              <p className="text-sm text-stone-500">{kcalOf(unsorted).toLocaleString('ja-JP')} kcal</p>
-            </div>
-            <p className="mb-1 text-[11px] text-stone-400">区分を分ける前に記録したものです。押すと量の変更や、朝・昼・夜への移動ができます。</p>
-            <ul className="divide-y divide-stone-100">{unsorted.map(itemRow)}</ul>
-          </div>
-        )}
       </div>
       <button onClick={() => setManaging(true)} className="mt-3 h-11 w-full text-sm text-stone-500">
         テンプレートの作成・編集 ›
@@ -163,7 +153,7 @@ export default function MealCard({
         <AmountSheet
           food={amountFor.food}
           item={amountFor.item}
-          slot={amountFor.item ? amountFor.item.slot : amountFor.slot}
+          slot={amountFor.item ? (amountFor.item.slot ?? 'snack') : amountFor.slot}
           showSlot
           onClose={() => setAmountFor(undefined)}
           onDone={(item) => {

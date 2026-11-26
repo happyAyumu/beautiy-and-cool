@@ -51,6 +51,18 @@ export function templateSlot(t: MealTemplate): MealSlot | undefined {
   return undefined;
 }
 
+/** 区分のない食べたもの（区分を分ける前の記録）に区分を付ける。
+ *  その食材が入っている区分付きテンプレートの区分にし、見つからなければ間食にする */
+export function assignSlots(meals: MealItem[], templates: MealTemplate[]): MealItem[] {
+  if (meals.every((m) => m.slot)) return meals;
+  const bySlotFood = new Map<string, MealSlot>();
+  for (const t of templates) {
+    const s = templateSlot(t);
+    if (s) for (const it of t.items) if (!bySlotFood.has(it.foodId)) bySlotFood.set(it.foodId, s);
+  }
+  return meals.map((m) => (m.slot ? m : { ...m, slot: bySlotFood.get(m.foodId) ?? 'snack' }));
+}
+
 /** その日に食べたもの。食材をあとで直しても過去の記録が変わらないよう、栄養はその時点の値で保存する */
 export type MealItem = { id: string; foodId: string; name: string; grams: number; nutrients: Nutrients; slot?: MealSlot };
 
@@ -107,6 +119,18 @@ class AppDB extends Dexie {
           }),
       );
     this.version(5).stores({ logs: 'date', photos: 'id, date', meta: 'key', products: 'id', foods: 'id', templates: 'id' });
+    // 区分のない食べたものに区分を付ける
+    this.version(6)
+      .stores({ logs: 'date', photos: 'id, date', meta: 'key', products: 'id', foods: 'id', templates: 'id' })
+      .upgrade(async (tx) => {
+        const templates = (await tx.table('templates').toArray()) as MealTemplate[];
+        await tx
+          .table('logs')
+          .toCollection()
+          .modify((l: DailyLog) => {
+            if (l.meals?.some((m) => !m.slot)) l.meals = assignSlots(l.meals, templates);
+          });
+      });
     this.on('populate', (tx) => {
       tx.table('foods').bulkAdd(seedFoods());
     });

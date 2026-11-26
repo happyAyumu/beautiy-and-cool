@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 import { NUTRIENT_KEYS } from '../lib/nutrients';
-import { db, MEAL_SLOTS, seedFoods, SLOTS, type MealSlot, TIMINGS, photoId, setMeta, type DailyLog, type Photo, type PhotoSlot, type Food, type MealItem, type MealTemplate, type Product, type Score, type Timing, type Usage } from '../db';
+import { assignSlots, db, MEAL_SLOTS, seedFoods, SLOTS, type MealSlot, TIMINGS, photoId, setMeta, type DailyLog, type Photo, type PhotoSlot, type Food, type MealItem, type MealTemplate, type Product, type Score, type Timing, type Usage } from '../db';
 import { stampTokyo } from '../lib/date';
 
 type PhotoEntry = { id: string; date: string; slot: PhotoSlot; file: string };
@@ -178,7 +178,8 @@ export async function applyBackup(b: ParsedBackup, mode: 'overwrite' | 'skip'): 
     // 上書きする日は、その日の既存の記録と写真をいったん消してから入れる
     await db.logs.bulkDelete(target);
     await db.photos.where('date').anyOf(target).delete();
-    await db.logs.bulkPut(b.logs.filter((l) => set.has(l.date)));
+    const templates = await db.templates.toArray();
+    await db.logs.bulkPut(b.logs.filter((l) => set.has(l.date)).map((l) => (l.meals ? { ...l, meals: assignSlots(l.meals, templates) } : l)));
     await db.photos.bulkPut(b.photos.filter((p) => set.has(p.date)));
   });
   return target.length;
