@@ -1,6 +1,6 @@
-import { db, MEAL_SLOT_LABEL, MEAL_SLOTS, usageText, type DailyLog, type MealItem } from '../db';
+import { db, type WeeklyItem, MEAL_SLOT_LABEL, MEAL_SLOTS, usageText, type DailyLog, type MealItem } from '../db';
 import { sumNutrients } from '../lib/nutrients';
-import { periodStart, todayTokyo, type Period } from '../lib/date';
+import { addDays, periodStart, todayTokyo, type Period } from '../lib/date';
 
 /** 「朝: ヨーグルト 200g、バナナ 100g / 昼: …」 */
 function mealsText(meals: MealItem[] | undefined): string | undefined {
@@ -57,6 +57,24 @@ export async function buildAiMarkdown(period: Period): Promise<string> {
           .join(' | ')} |`,
     ),
   ];
+  // 週間チェックと変更メモ（期間内にあるときだけ）
+  const [weekly, changes] = await Promise.all([
+    db.weekly.where('id').between(addDays(start, -6), today, true, true).toArray(),
+    db.changes.where('date').between(start, today, true, true).sortBy('date'),
+  ]);
+  if (weekly.length) {
+    const items: [WeeklyItem, string][] = [['oil', '油分'], ['moisture', '水分'], ['pores', '毛穴'], ['texture', 'キメ'], ['clarity', '透明感・シミ'], ['firmness', 'ハリ']];
+    const ans = { better: '良くなった', same: '同じ', worse: '悪くなった' } as const;
+    lines.push('', '## 週間チェック（先週と比べて）', '', `| 週（月曜〜） | ${items.map((i) => i[1]).join(' | ')} | 写真 | メモ |`, `| --- | ${items.map(() => '---').join(' | ')} | --- | --- |`);
+    for (const w of weekly)
+      lines.push(
+        `| ${[w.id, ...items.map(([k]) => (w.answers[k] ? ans[w.answers[k]!] : '')), w.photoTaken ? '撮った' : '', items.filter(([k]) => w.notes[k]?.trim()).map(([k, l]) => `${l}: ${w.notes[k]}`).join('、')].map(cell).join(' | ')} |`,
+      );
+  }
+  if (changes.length) {
+    const kind = { new_product: '新しい商品を使い始めた', medicine: '薬を始めた・変えた', other: 'その他' } as const;
+    lines.push('', '## 変更メモ', '', ...changes.map((c) => `- ${c.date} ${kind[c.kind]}: ${c.text}`));
+  }
   return lines.join('\n') + '\n';
 }
 

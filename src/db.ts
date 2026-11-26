@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { Nutrients } from './lib/nutrients';
 import { FOOD_SEEDS } from './data/foods';
+import type { Concern } from './data/ingredients';
 
 export type Score = 1 | 2 | 3 | 4 | 5;
 export type PhotoSlot = 'front' | 'right' | 'left';
@@ -33,6 +34,66 @@ export type Food = {
   active: boolean;
   createdAt: string;
 };
+
+// ---- ケア（週間チェック・購入判断・手持ち品・変更メモ）----
+export type WeeklyItem = 'oil' | 'moisture' | 'pores' | 'texture' | 'clarity' | 'firmness';
+export type WeeklyAnswer = 'better' | 'same' | 'worse';
+/** 週間チェック。id は その週の月曜日 YYYY-MM-DD */
+export type WeeklyCheck = {
+  id: string;
+  answers: Partial<Record<WeeklyItem, WeeklyAnswer>>;
+  notes: Partial<Record<WeeklyItem, string>>;
+  photoTaken?: boolean;
+  updatedAt: string;
+};
+
+export type SkinProductType = 'cleanser' | 'lotion' | 'serum' | 'pack' | 'emulsion' | 'sunscreen' | 'other';
+export type IrritationFlag = 'fragrance' | 'ethanol' | 'acid' | 'retinoid' | 'other';
+export type Verdict = 'ok' | 'hold' | 'skip';
+export type TrialResult = 'good' | 'no_change' | 'worse';
+
+/** 購入判断シート */
+export type PurchaseSheet = {
+  id: string;
+  name: string;
+  type: SkinProductType;
+  targetConcerns: Concern[];
+  mainIngredients: string[]; // 辞書の id
+  freeIngredients?: string; // 辞書にない成分（自由記入）
+  ingredientPosition: 'upper' | 'middle' | 'lower' | 'unknown';
+  fullListChecked?: boolean;
+  irritationFlags: IrritationFlag[];
+  oilLevel: 'oil_free' | 'oily' | 'unknown';
+  quasiDrug: 'quasi' | 'cosmetic' | 'unknown';
+  area: 'face' | 'cheeks_only' | 't_zone_only' | 'avoid_mouth';
+  timing: 'morning' | 'night' | 'night_no_retinol';
+  allergySeafood?: boolean;
+  allergyPast?: boolean;
+  currentSkin: ('rough' | 'wound' | 'shaved')[];
+  evidence: 'general' | 'maker' | 'unconfirmed';
+  patchTestDate?: string;
+  verdict: Verdict;
+  reasons: string[]; // rule_1 など
+  startedOn?: string;
+  result?: TrialResult;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** 手持ち品（重複チェック用） */
+export type OwnedItem = {
+  id: string;
+  name: string;
+  type: SkinProductType;
+  mainIngredients: string[];
+  startedOn?: string;
+  inUse: boolean;
+  sheetId?: string;
+  createdAt: string;
+};
+
+/** 変更メモ（新しい商品・薬の開始など） */
+export type ChangeNote = { id: string; date: string; kind: 'new_product' | 'medicine' | 'other'; text: string; createdAt: string };
 
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export const MEAL_SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -100,6 +161,10 @@ class AppDB extends Dexie {
   products!: EntityTable<Product, 'id'>;
   foods!: EntityTable<Food, 'id'>;
   templates!: EntityTable<MealTemplate, 'id'>;
+  weekly!: EntityTable<WeeklyCheck, 'id'>;
+  sheets!: EntityTable<PurchaseSheet, 'id'>;
+  owned!: EntityTable<OwnedItem, 'id'>;
+  changes!: EntityTable<ChangeNote, 'id'>;
   constructor() {
     super('body-log');
     this.version(1).stores({ logs: 'date', photos: 'id, date', meta: 'key' });
@@ -131,6 +196,11 @@ class AppDB extends Dexie {
             if (l.meals?.some((m) => !m.slot)) l.meals = assignSlots(l.meals, templates);
           });
       });
+    // ケア機能の表を追加（既存の記録には手を付けない）
+    this.version(7).stores({
+      logs: 'date', photos: 'id, date', meta: 'key', products: 'id', foods: 'id', templates: 'id',
+      weekly: 'id', sheets: 'id', owned: 'id', changes: 'id, date',
+    });
     this.on('populate', (tx) => {
       tx.table('foods').bulkAdd(seedFoods());
     });

@@ -340,7 +340,7 @@ function DeleteCard() {
   const [msg, setMsg] = useState<string>();
   return (
     <Card title="全データを削除">
-      <p className="mb-3 text-xs text-stone-500">この端末の記録・写真・薬と肌ケア用品の一覧をすべて消し、食材の一覧を最初の状態に戻します。元に戻せないので、先にバックアップを書き出してください。</p>
+      <p className="mb-3 text-xs text-stone-500">この端末の記録・写真・薬と肌ケア用品の一覧・ケア（週間チェック・購入判断・手持ち品・変更メモ）をすべて消し、食材の一覧を最初の状態に戻します。元に戻せないので、先にバックアップを書き出してください。</p>
       <button
         className={`${btn} border border-red-300 text-red-600`}
         onClick={async () => {

@@ -4,20 +4,22 @@ import InputTab from './tabs/InputTab';
 import WeightTab from './tabs/WeightTab';
 import SleepTab from './tabs/SleepTab';
 import CalorieTab from './tabs/CalorieTab';
+import CareTab from './tabs/CareTab';
 import BeautyTab from './tabs/BeautyTab';
 import Settings from './settings/Settings';
 
-export type Tab = 'input' | 'weight' | 'calorie' | 'sleep' | 'beauty';
+export type Tab = 'input' | 'weight' | 'calorie' | 'sleep' | 'beauty' | 'care';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'input', label: '入力する', icon: 'M12 5v14M5 12h14' },
+  { id: 'input', label: '入力', icon: 'M12 5v14M5 12h14' },
   { id: 'weight', label: '体重', icon: 'M4 18l5-6 4 3 7-9' },
   { id: 'calorie', label: 'カロリー', icon: 'M12 2c1 4 5 6 5 11a5 5 0 01-10 0c0-3 2-4 2-7 1.5 1 2 2.5 2 4 1-2 1-5 1-8z' },
-  { id: 'sleep', label: '睡眠時間', icon: 'M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z' },
+  { id: 'sleep', label: '睡眠', icon: 'M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z' },
   { id: 'beauty', label: '美容', icon: 'M4 7h16M4 12h16M4 17h16M8 4v3M16 4v3' },
+  { id: 'care', label: 'ケア', icon: 'M9 3h6v4l2 3v10a1 1 0 01-1 1H8a1 1 0 01-1-1V10l2-3zM9 7h6M10 14h4' },
 ];
 
-const TITLE: Record<Tab, string> = { input: '入力する', weight: '体重', calorie: 'カロリー', sleep: '睡眠時間', beauty: '美容' };
+const TITLE: Record<Tab, string> = { input: '入力する', weight: '体重', calorie: 'カロリー', sleep: '睡眠時間', beauty: '美容', care: 'ケア' };
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('input');
@@ -58,6 +60,7 @@ export default function App() {
         {tab === 'calorie' && <CalorieTab />}
         {tab === 'sleep' && <SleepTab openInput={openInput} />}
         {tab === 'beauty' && <BeautyTab openInput={openInput} />}
+        {tab === 'care' && <CareTab />}
       </main>
 
       <nav
