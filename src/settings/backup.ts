@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 import { NUTRIENT_KEYS } from '../lib/nutrients';
-import { db, seedFoods, SLOTS, TIMINGS, photoId, setMeta, type DailyLog, type Photo, type PhotoSlot, type Food, type MealItem, type MealTemplate, type Product, type Score, type Timing, type Usage } from '../db';
+import { db, MEAL_SLOTS, seedFoods, SLOTS, type MealSlot, TIMINGS, photoId, setMeta, type DailyLog, type Photo, type PhotoSlot, type Food, type MealItem, type MealTemplate, type Product, type Score, type Timing, type Usage } from '../db';
 import { stampTokyo } from '../lib/date';
 
 type PhotoEntry = { id: string; date: string; slot: PhotoSlot; file: string };
@@ -72,7 +72,10 @@ function cleanMeals(v: unknown): MealItem[] | undefined {
   if (!Array.isArray(v)) return undefined;
   const out = v
     .filter((m) => typeof m?.name === 'string' && typeof m?.grams === 'number')
-    .map((m) => ({ id: str(m.id) ?? crypto.randomUUID(), foodId: str(m.foodId) ?? '', name: m.name as string, grams: m.grams as number, nutrients: cleanNutrients(m.nutrients) }));
+    .map((m) => ({
+      id: str(m.id) ?? crypto.randomUUID(), foodId: str(m.foodId) ?? '', name: m.name as string, grams: m.grams as number, nutrients: cleanNutrients(m.nutrients),
+      ...(MEAL_SLOTS.includes(m.slot) ? { slot: m.slot as MealSlot } : {}),
+    }));
   return out.length ? out : undefined;
 }
 
@@ -92,7 +95,7 @@ function cleanTemplate(r: Record<string, unknown>): MealTemplate | undefined {
   const items = (r.items as Record<string, unknown>[])
     .filter((i) => typeof i?.foodId === 'string' && typeof i?.grams === 'number')
     .map((i) => ({ foodId: i.foodId as string, grams: i.grams as number }));
-  return { id: r.id, name: r.name, items, createdAt: str(r.createdAt) ?? new Date().toISOString() };
+  return { id: r.id, name: r.name, ...(MEAL_SLOTS.includes(r.slot as MealSlot) ? { slot: r.slot as MealSlot } : {}), items, createdAt: str(r.createdAt) ?? new Date().toISOString() };
 }
 
 function cleanUsage(v: unknown): Usage[] | undefined {

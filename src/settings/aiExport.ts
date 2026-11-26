@@ -1,6 +1,16 @@
-import { db, usageText, type DailyLog } from '../db';
+import { db, MEAL_SLOT_LABEL, MEAL_SLOTS, usageText, type DailyLog, type MealItem } from '../db';
 import { sumNutrients } from '../lib/nutrients';
 import { periodStart, todayTokyo, type Period } from '../lib/date';
+
+/** 「朝: ヨーグルト 200g、バナナ 100g / 昼: …」 */
+function mealsText(meals: MealItem[] | undefined): string | undefined {
+  if (!meals?.length) return undefined;
+  const list = (ms: MealItem[]) => ms.map((m) => `${m.name} ${m.grams}g`).join('、');
+  const groups = MEAL_SLOTS.filter((s) => meals.some((m) => m.slot === s)).map((s) => `${MEAL_SLOT_LABEL[s]}: ${list(meals.filter((m) => m.slot === s))}`);
+  const rest = meals.filter((m) => !m.slot);
+  if (rest.length) groups.push(groups.length ? `区分なし: ${list(rest)}` : list(rest));
+  return groups.join(' / ');
+}
 
 function pfc(l: DailyLog): (string | undefined)[] {
   if (!l.meals?.length) return [undefined, undefined, undefined];
@@ -34,7 +44,7 @@ export async function buildAiMarkdown(period: Period): Promise<string> {
           l.sleepHours?.toFixed(1),
           l.calories,
           ...pfc(l),
-          l.meals?.map((m) => `${m.name} ${m.grams}g`).join('、'),
+          mealsText(l.meals),
           l.newAcneCount,
           l.redness,
           l.oiliness,

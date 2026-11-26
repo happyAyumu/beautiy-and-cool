@@ -1,113 +1,103 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, newId, type MealItem, type MealTemplate } from '../db';
+import { db, MEAL_SLOT_LABEL, MEAL_SLOTS, newId, templateSlot, type Food, type MealItem, type MealSlot, type MealTemplate } from '../db';
 import { scale } from '../lib/nutrients';
 import Sheet from './Sheet';
 import { AmountSheet, FoodPicker } from './MealCard';
-import type { Food } from '../db';
 
 /** テンプレートから、今の食材の値で食べたものを作る */
-async function expand(t: MealTemplate): Promise<MealItem[]> {
+export async function expand(t: MealTemplate, slot: MealSlot): Promise<MealItem[]> {
   const foods = await db.foods.bulkGet(t.items.map((i) => i.foodId));
   return t.items.flatMap((it, i) => {
     const f = foods[i];
     if (!f) return [];
-    return [{ id: newId(), foodId: f.id, name: f.name, grams: it.grams, nutrients: scale(f.per100, it.grams) }];
+    return [{ id: newId(), foodId: f.id, name: f.name, grams: it.grams, nutrients: scale(f.per100, it.grams), slot }];
   });
 }
 
-/** テンプレートの kcal（表示用） */
-function useTemplateKcal(templates: MealTemplate[] | undefined) {
+/** テンプレート一覧と、それぞれの kcal */
+export function useTemplates() {
   return useLiveQuery(async () => {
-    const out: Record<string, number> = {};
-    for (const t of templates ?? []) {
-      const items = await expand(t);
-      out[t.id] = Math.round(items.reduce((s, m) => s + (m.nutrients.kcal ?? 0), 0));
-    }
-    return out;
-  }, [templates]);
+    const templates = await db.templates.toCollection().sortBy('createdAt');
+    const foods = new Map((await db.foods.toArray()).map((f) => [f.id, f]));
+    const kcal: Record<string, number> = {};
+    for (const t of templates) kcal[t.id] = Math.round(t.items.reduce((s, it) => s + ((foods.get(it.foodId)?.per100.kcal ?? 0) * it.grams) / 100, 0));
+    return { templates, kcal };
+  });
 }
 
-/** カロリー画面の「テンプレートから追加」 */
-export default function TemplateBar({ meals, onApply }: { meals: MealItem[]; onApply: (items: MealItem[]) => void }) {
-  const templates = useLiveQuery(() => db.templates.toCollection().sortBy('createdAt'));
-  const kcal = useTemplateKcal(templates);
-  const [managing, setManaging] = useState(false);
-  const [editing, setEditing] = useState<MealTemplate | 'new' | { fromMeals: MealItem[] }>();
-  const [msg, setMsg] = useState<string>();
-
-  const apply = async (t: MealTemplate) => {
-    const items = await expand(t);
-    onApply(items);
-    setMsg(`「${t.name}」を追加しました`);
-    setTimeout(() => setMsg(undefined), 2000);
-  };
-
+/** 区分ごとのテンプレートボタン。その区分のもの＋区分なしのものを出す */
+export function SlotTemplates({ slot, onApply }: { slot: MealSlot; onApply: (items: MealItem[], name: string) => void }) {
+  const data = useTemplates();
+  const list = data?.templates.filter((t) => {
+    const s = templateSlot(t);
+    return s === slot || s === undefined;
+  });
+  if (!list?.length) return null;
   return (
-    <div className="mb-4 border-b border-stone-100 pb-4">
-      <div className="mb-2 flex items-center justify-between">
-        <p className="text-sm font-bold text-stone-600">テンプレートから追加</p>
-        <button onClick={() => setManaging(true)} className="h-9 text-sm text-stone-400">
-          作成・編集 ›
+    <div className="mb-2 flex flex-wrap gap-2">
+      {list.map((t) => (
+        <button
+          key={t.id}
+          onClick={async () => onApply(await expand(t, slot), t.name)}
+          className="flex min-h-11 flex-col items-start justify-center rounded-xl border-2 border-brand-200 bg-brand-50 px-3 py-1 text-left"
+        >
+          <span className="text-sm font-bold text-brand-700">＋ {t.name}</span>
+          <span className="text-[11px] text-brand-600/70">
+            {t.items.length}品・{data!.kcal[t.id]?.toLocaleString('ja-JP')} kcal
+          </span>
         </button>
-      </div>
-      {templates && templates.length > 0 ? (
-        <div className="grid grid-cols-2 gap-2">
-          {templates.map((t) => (
-            <button key={t.id} onClick={() => apply(t)} className="flex min-h-14 flex-col items-start justify-center rounded-xl border-2 border-brand-200 bg-brand-50 px-3 py-2 text-left">
-              <span className="font-bold text-brand-700">＋ {t.name}</span>
-              <span className="text-xs text-brand-600/70">
-                {t.items.length}品・{kcal?.[t.id]?.toLocaleString('ja-JP') ?? '…'} kcal
-              </span>
-            </button>
-          ))}
-        </div>
-      ) : (
-        <button onClick={() => setEditing('new')} className="h-12 w-full rounded-xl border-2 border-dashed border-stone-200 text-sm text-stone-400">
-          ＋ 朝・昼・夜の定番をテンプレートにする
-        </button>
-      )}
-      {meals.length > 0 && (
-        <button onClick={() => setEditing({ fromMeals: meals })} className="mt-2 h-10 w-full text-xs text-stone-400">
-          この日の食べたものをテンプレートとして保存
-        </button>
-      )}
-      {msg && <p className="mt-2 rounded-xl bg-brand-50 p-2 text-center text-sm font-bold text-brand-700">{msg}</p>}
-
-      {managing && (
-        <Sheet title="食事のテンプレート" onClose={() => setManaging(false)}>
-          <ul className="space-y-2">
-            {templates?.map((t) => (
-              <li key={t.id}>
-                <button onClick={() => setEditing(t)} className="flex min-h-12 w-full items-center justify-between rounded-xl border-2 border-stone-100 px-4 py-2 text-left">
-                  <span>{t.name}</span>
-                  <span className="text-xs text-stone-400">
-                    {t.items.length}品・{kcal?.[t.id]?.toLocaleString('ja-JP') ?? '…'} kcal ›
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          <button onClick={() => setEditing('new')} className="mt-3 h-12 w-full rounded-xl border-2 border-dashed border-brand-300 font-bold text-brand-500">
-            ＋ 新しいテンプレート
-          </button>
-        </Sheet>
-      )}
-      {editing && (
-        <TemplateEditor
-          template={typeof editing === 'object' && 'id' in editing ? editing : undefined}
-          fromMeals={typeof editing === 'object' && 'fromMeals' in editing ? editing.fromMeals : undefined}
-          onClose={() => setEditing(undefined)}
-        />
-      )}
+      ))}
     </div>
+  );
+}
+
+/** テンプレートの一覧（作成・編集） */
+export function TemplateManager({ onClose }: { onClose: () => void }) {
+  const data = useTemplates();
+  const [editing, setEditing] = useState<MealTemplate | 'new'>();
+  return (
+    <Sheet title="食事のテンプレート" onClose={onClose}>
+      <p className="-mt-2 mb-3 text-xs text-stone-400">朝・昼・夜の定番を登録しておくと、その区分のところにボタンが出ます。</p>
+      <ul className="space-y-2">
+        {data?.templates.map((t) => {
+          const s = templateSlot(t);
+          return (
+            <li key={t.id}>
+              <button onClick={() => setEditing(t)} className="flex min-h-12 w-full items-center justify-between rounded-xl border-2 border-stone-100 px-4 py-2 text-left">
+                <span>
+                  {s && <span className="mr-2 rounded-full bg-brand-100 px-2 py-0.5 text-xs text-brand-700">{MEAL_SLOT_LABEL[s]}</span>}
+                  {t.name}
+                </span>
+                <span className="shrink-0 text-xs text-stone-400">
+                  {t.items.length}品・{data.kcal[t.id]?.toLocaleString('ja-JP')} kcal ›
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <button onClick={() => setEditing('new')} className="mt-3 h-12 w-full rounded-xl border-2 border-dashed border-brand-300 font-bold text-brand-500">
+        ＋ 新しいテンプレート
+      </button>
+      {editing && <TemplateEditor template={editing === 'new' ? undefined : editing} onClose={() => setEditing(undefined)} />}
+    </Sheet>
   );
 }
 
 type Row = { key: string; foodId: string; grams: number };
 
-function TemplateEditor({ template, fromMeals, onClose }: { template?: MealTemplate; fromMeals?: MealItem[]; onClose: () => void }) {
-  const [name, setName] = useState(template?.name ?? '');
+export function TemplateEditor({
+  template, fromMeals, initialSlot, onClose,
+}: {
+  template?: MealTemplate;
+  fromMeals?: MealItem[];
+  initialSlot?: MealSlot;
+  onClose: () => void;
+}) {
+  const [slot, setSlot] = useState<MealSlot | undefined>(template ? templateSlot(template) : initialSlot);
+  const defaultName = (s?: MealSlot) => (s ? (s === 'snack' ? '間食' : `${MEAL_SLOT_LABEL[s]}の定番`) : '');
+  const [name, setName] = useState(template?.name ?? defaultName(initialSlot));
   const [rows, setRows] = useState<Row[]>(() =>
     (template?.items ?? fromMeals?.map((m) => ({ foodId: m.foodId, grams: m.grams })) ?? []).map((i) => ({ key: newId(), ...i })),
   );
@@ -125,7 +115,7 @@ function TemplateEditor({ template, fromMeals, onClose }: { template?: MealTempl
   const save = async () => {
     if (!name.trim()) return setError('名前を入れてください（例: 朝の定番）');
     if (!rows.length) return setError('食材を1つ以上追加してください');
-    const data = { name: name.trim(), items: rows.map(({ foodId, grams }) => ({ foodId, grams })) };
+    const data = { name: name.trim(), slot, items: rows.map(({ foodId, grams }) => ({ foodId, grams })) };
     if (template) await db.templates.update(template.id, data);
     else await db.templates.add({ id: newId(), ...data, createdAt: new Date().toISOString() });
     onClose();
@@ -141,15 +131,24 @@ function TemplateEditor({ template, fromMeals, onClose }: { template?: MealTempl
         </button>
       }
     >
-      <label className="text-sm font-bold text-stone-600">名前</label>
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="例: 朝の定番" className="mb-2 mt-1 h-12 w-full rounded-xl border-2 border-stone-200 px-3" />
-      <div className="mb-3 flex flex-wrap gap-2">
-        {['朝の定番', '昼の定番', '夜の定番', '間食'].map((n) => (
-          <button key={n} onClick={() => setName(n)} className="h-9 rounded-full bg-stone-100 px-3 text-sm text-stone-600">
-            {n}
+      <p className="text-sm font-bold text-stone-600">いつの食事？</p>
+      <div className="mb-3 mt-1 grid grid-cols-4 gap-2">
+        {MEAL_SLOTS.map((s) => (
+          <button
+            key={s}
+            onClick={() => {
+              const next = slot === s ? undefined : s;
+              if (!name.trim() || name === defaultName(slot)) setName(defaultName(next));
+              setSlot(next);
+            }}
+            className={`h-11 rounded-xl border-2 ${slot === s ? 'border-brand-500 bg-brand-50 font-bold text-brand-600' : 'border-stone-200 text-stone-500'}`}
+          >
+            {MEAL_SLOT_LABEL[s]}
           </button>
         ))}
       </div>
+      <label className="text-sm font-bold text-stone-600">名前</label>
+      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="例: 朝の定番" className="mb-4 mt-1 h-12 w-full rounded-xl border-2 border-stone-200 px-3" />
 
       <div className="mb-2 flex items-baseline justify-between">
         <p className="text-sm font-bold text-stone-600">食材</p>

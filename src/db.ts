@@ -34,11 +34,25 @@ export type Food = {
   createdAt: string;
 };
 
+export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+export const MEAL_SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+export const MEAL_SLOT_LABEL: Record<MealSlot, string> = { breakfast: '朝', lunch: '昼', dinner: '夜', snack: '間食' };
+
 /** 食事のテンプレート（朝の定番 など） */
-export type MealTemplate = { id: string; name: string; items: { foodId: string; grams: number }[]; createdAt: string };
+export type MealTemplate = { id: string; name: string; slot?: MealSlot; items: { foodId: string; grams: number }[]; createdAt: string };
+
+/** テンプレートの区分。未設定なら名前から推測する */
+export function templateSlot(t: MealTemplate): MealSlot | undefined {
+  if (t.slot) return t.slot;
+  if (t.name.includes('朝')) return 'breakfast';
+  if (t.name.includes('昼')) return 'lunch';
+  if (t.name.includes('夜') || t.name.includes('夕')) return 'dinner';
+  if (t.name.includes('間食') || t.name.includes('おやつ')) return 'snack';
+  return undefined;
+}
 
 /** その日に食べたもの。食材をあとで直しても過去の記録が変わらないよう、栄養はその時点の値で保存する */
-export type MealItem = { id: string; foodId: string; name: string; grams: number; nutrients: Nutrients };
+export type MealItem = { id: string; foodId: string; name: string; grams: number; nutrients: Nutrients; slot?: MealSlot };
 
 export type DailyLog = {
   date: string; // YYYY-MM-DD
